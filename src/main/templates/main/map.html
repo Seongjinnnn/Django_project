@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>지도</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <style>
+        #title {
+            position: absolute;
+            top: 0px;
+            left: 100px;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: white;
+            padding: 4px 30px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            z-index: 1001;
+        }
+    
+        #map {
+            position: absolute;
+            top: 40px;            /* 타이틀 아래로 내림 */
+            left: 5px;
+            width: 400px;
+            height: 250px;
+            border: 2px solid #444;
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+    
+        #status {
+            position: absolute;
+            top: 300px;
+            left: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            background-color: #f8f8f8;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.1);
+        }
+    </style>
+    
+</head>
+<body>
+    <div id="title">교내 자율주행 서비스</div>
+    <div id="map"></div>
+    <div id="status">위치 없음</div>
+
+    <script>
+    var map = L.map('map').setView([35.1432, 126.9339], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    var marker = null;
+
+    function updateMarker() {
+        fetch('/tf/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.markers && data.markers.length > 0) {
+                    const m = data.markers[0];
+                    const latlng = [m.lat, m.lng];
+
+                    if (!marker) {
+                        marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
+                    } else {
+                        marker.setLatLng(latlng);
+                    if (marker.getPopup()) {
+                        marker.getPopup().setContent(m.title);
+                    } else {
+                        marker.bindPopup(m.title);
+                    }
+                }
+
+                    // 상태 텍스트도 같이 업데이트
+                    document.getElementById('status').innerText =
+                        `차량 위치`;
+                }
+            })
+            .catch(error => console.error("위치 갱신 실패:", error));
+    }
+
+    // ⏱️ 1초마다 위치 갱신
+    setInterval(updateMarker, 100);
+    updateMarker(); // 첫 실행
+</script>
+    </script>
+</body>
+</html>
