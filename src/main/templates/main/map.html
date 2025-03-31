@@ -12,7 +12,7 @@
         #title {
             position: absolute;
             top: 0px;
-            left: 100px;
+            left: 90px;
             font-size: 20px;
             font-weight: bold;
             background-color: white;
@@ -22,10 +22,10 @@
             box-shadow: 0 0 5px rgba(0,0,0,0.1);
             z-index: 1001;
         }
-    
+
         #map {
             position: absolute;
-            top: 40px;            /* 타이틀 아래로 내림 */
+            top: 40px;
             left: 5px;
             width: 400px;
             height: 250px;
@@ -34,12 +34,10 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
-    
-        #status {
+
+        #location, #status {
             position: absolute;
             top: 300px;
-            left: 10px;
-            font-weight: bold;
             font-size: 13px;
             background-color: #f8f8f8;
             padding: 4px 8px;
@@ -47,53 +45,84 @@
             border-radius: 6px;
             box-shadow: 0 0 4px rgba(0,0,0,0.1);
         }
+
+        #location { left: 10px; }
+        #status { left: 130px; }
     </style>
-    
 </head>
 <body>
     <div id="title">교내 자율주행 서비스</div>
     <div id="map"></div>
-    <div id="status">위치 없음</div>
+    <div id="location">위치 없음</div>
+    <div id="status">상태 없음</div>
 
     <script>
-    var map = L.map('map').setView([35.1432, 126.9339], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+        const map = L.map('map').setView([35.1432, 126.9339], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
 
-    var marker = null;
+        let marker = null;
+        let lastUpdateTime = 0;
 
-    function updateMarker() {
-        fetch('/tf/')
-            .then(response => response.json())
-            .then(data => {
-                if (data.markers && data.markers.length > 0) {
-                    const m = data.markers[0];
-                    const latlng = [m.lat, m.lng];
+        function updateMarker() {
+            fetch('/tf/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.markers && data.markers.length > 0) {
+                        const m = data.markers[0];
+                        const latlng = [m.lat, m.lng];
 
-                    if (!marker) {
-                        marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
-                    } else {
-                        marker.setLatLng(latlng);
-                    if (marker.getPopup()) {
-                        marker.getPopup().setContent(m.title);
-                    } else {
-                        marker.bindPopup(m.title);
+                        if (!marker) {
+                            marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
+                        } else {
+                            marker.setLatLng(latlng);
+                            marker.getPopup().setContent(m.title);
+                        }
+
+                        lastUpdateTime = Date.now();
+                        document.getElementById('location').innerText = "차량 위치: 확인됨";
+
+                        updateStatus(m.status);
                     }
-                }
+                })
+                .catch(error => {
+                    console.error("위치 갱신 실패:", error);
+                    document.getElementById('location').innerText = "차량 위치 없음";
+                    document.getElementById('status').innerText = "상태 없음";
+                });
+        }
 
-                    // 상태 텍스트도 같이 업데이트
-                    document.getElementById('status').innerText =
-                        `차량 위치`;
-                }
-            })
-            .catch(error => console.error("위치 갱신 실패:", error));
+        function updateStatus(status) {
+            const statusBox = document.getElementById('status');
+            const validStates = ["정지", "운행중", "출발중", "대기중"];
+
+            let statusText = "상태 없음";
+            let bgColor = "#f8f8f8";  // 기본 회색
+
+            if (validStates.includes(status)) {
+                statusText = "상태: " + status;
+
+            if (status === "정지") {
+                bgColor = "#fdd"; // 연한 빨강
+            } else if (status === "운행중") {
+                bgColor = "#dfd"; // 연한 초록
+        }
     }
 
-    // ⏱️ 1초마다 위치 갱신
-    setInterval(updateMarker, 100);
-    updateMarker(); // 첫 실행
-</script>
+    statusBox.innerText = statusText;
+    statusBox.style.backgroundColor = bgColor;
+}
+
+        function checkLocationStatus() {
+            if (Date.now() - lastUpdateTime > 3000) {
+                document.getElementById('location').innerText = "차량 위치 없음";
+            }
+        }
+
+        setInterval(updateMarker, 1000);
+        setInterval(checkLocationStatus, 1000);
+        updateMarker();
     </script>
 </body>
 </html>
