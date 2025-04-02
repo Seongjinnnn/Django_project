@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>지도</title>
+    <title>자율주행 셔틀 서비스</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -73,15 +73,19 @@
                         const m = data.markers[0];
                         const latlng = [m.lat, m.lng];
 
-                        if (!marker) {
-                            marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
+                        if (m.lat === 0.0 && m.lng === 0.0) {
+                            document.getElementById('location').innerText = "차량 위치 없음";
                         } else {
-                            marker.setLatLng(latlng);
-                            marker.getPopup().setContent(m.title);
-                        }
+                            if (!marker) {
+                                marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
+                            } else {
+                                marker.setLatLng(latlng);
+                                marker.getPopup().setContent(m.title);
+                            }
 
-                        lastUpdateTime = Date.now();
-                        document.getElementById('location').innerText = "차량 위치: 확인됨";
+                            document.getElementById('location').innerText = "차량 위치: 확인됨";
+                            lastUpdateTime = Date.now();
+                        }
 
                         updateStatus(m.status);
                     }
@@ -95,34 +99,33 @@
 
         function updateStatus(status) {
             const statusBox = document.getElementById('status');
-            const validStates = ["정지", "운행중", "출발중", "대기중"];
-
             let statusText = "상태 없음";
             let bgColor = "#f8f8f8";  // 기본 회색
 
-            if (validStates.includes(status)) {
-                statusText = "상태: " + status;
-
             if (status === "정지") {
+                statusText = "상태: 정지";
                 bgColor = "#fdd"; // 연한 빨강
             } else if (status === "운행중") {
+                statusText = "상태: 운행중";
                 bgColor = "#dfd"; // 연한 초록
-        }
-    }
+            } else if (status === "알수없음") {
+                statusText = "상태: 알수없음";
+                bgColor = "#eee"; // 연한 회색
+            }
 
-    statusBox.innerText = statusText;
-    statusBox.style.backgroundColor = bgColor;
-}
+            statusBox.innerText = statusText;
+            statusBox.style.backgroundColor = bgColor;
+        }
 
         function checkLocationStatus() {
-            if (Date.now() - lastUpdateTime > 3000) {
+            if (Date.now() - lastUpdateTime > 1000) {
                 document.getElementById('location').innerText = "차량 위치 없음";
             }
         }
 
-        setInterval(updateMarker, 1000);
-        setInterval(checkLocationStatus, 1000);
-        updateMarker();
+        setInterval(updateMarker, 100);          
+        setInterval(checkLocationStatus, 100);   
+        updateMarker(); // 초기 호출
     </script>
 </body>
 </html>
