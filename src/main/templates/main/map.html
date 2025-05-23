@@ -1,131 +1,315 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>자율주행 셔틀 서비스</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-
-    <style>
-        #title {
-            position: absolute;
-            top: 0px;
-            left: 90px;
-            font-size: 20px;
-            font-weight: bold;
-            background-color: white;
-            padding: 4px 30px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.1);
-            z-index: 1001;
-        }
-
-        #map {
-            position: absolute;
-            top: 40px;
-            left: 5px;
-            width: 400px;
-            height: 250px;
-            border: 2px solid #444;
-            z-index: 1000;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        }
-
-        #location, #status {
-            position: absolute;
-            top: 300px;
-            font-size: 13px;
-            background-color: #f8f8f8;
-            padding: 4px 8px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-shadow: 0 0 4px rgba(0,0,0,0.1);
-        }
-
-        #location { left: 10px; }
-        #status { left: 130px; }
-    </style>
+  <title>자율주행 셔틀 서비스</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <style>
+    body { font-family: sans-serif; }
+    #title {
+      position: absolute; 
+      top: 16px; 
+      left: 80px;
+      font-size: 25px; 
+      font-weight: bold;
+      background-color: #fff; 
+      padding: 6px 20px;
+      border: 1px solid #ccc; 
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1); 
+      z-index: 1001;
+    }
+    #SOC {
+      position: absolute; 
+      top: 43px; 
+      left: 345px;
+      font-size: 12px; 
+      font-weight: bold;
+      background-color: #f8f8f8; 
+      padding: 2px 13px;
+      border: 1px solid #ccc; 
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1); 
+      z-index: 1001;
+    }
+    #map {
+      position: absolute; 
+      top: 70px; 
+      left: 5px;
+      width: 400px; 
+      height: 270px;
+      border: 2px solid #444; 
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    #location, #eta, #status {
+      position: absolute; 
+      top: 350px;
+      font-size: 11px; 
+      background-color: #f8f8f8;
+      padding: 4px 8px; 
+      border: 1px solid #ccc;
+      border-radius: 6px; 
+      box-shadow: 0 0 4px rgba(0,0,0,0.1);
+    }
+    #location { left: 5px; 
+      width: 91px; 
+      text-align: center; 
+    }
+    #eta { left: 215px; 
+      width: 175px; 
+      text-align: center; 
+    }
+    #status { left: 120px; 
+      width: 70px; 
+      text-align: center; 
+    }
+    #line { position: absolute; 
+      top: 384px; 
+      left: 5px; 
+      width: 400px; 
+      height: 0.01px; 
+      border: 0.1px solid #444; 
+    }
+    #reservation_container {
+      position: absolute; 
+      top: 390px; 
+      left: 5px;
+      display: flex; 
+      flex-direction: row; 
+      gap: 20px;
+    }
+    #reservation_container > div:first-child { display: flex; flex-direction: column; gap: 8px; }
+    #boarding_button, #disembarkation_button {
+      font-size: 13px; 
+      font-weight: bold; 
+      padding: 10px 16px;
+      cursor: pointer; 
+      border-radius: 6px; 
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+      width: 140px;
+    }
+    #boarding_button { background: #007bff; color: white; }
+    #boarding_button:hover { background: #0056b3; }
+    #disembarkation_button { background: #ff4747; color: white; }
+    #disembarkation_button:hover { background: #8f0000; }
+    #passenger_count {
+      margin-top: 10px; 
+      padding: 6px 10px; 
+      width: 118px;
+      background: #f0f0f0; 
+      border-radius: 6px; 
+      font-size: 13px;
+      color: #333; 
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
+      border: 1px solid #ccc; 
+      text-align: center;
+    }
+    #qr_area {
+      width: 220px; 
+      height: 220px; 
+      background: #fff;
+      border: 1px solid #ccc; 
+      border-radius: 10px; 
+      padding: 10px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.15);
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+    }
+        #image1 {
+      position: absolute;
+      top: 550px;
+      left: 30px;
+      width: 100px;
+      height: auto;
+      border-radius: 10px;
+      display: block;
+    }
+    #image2 {
+      position: absolute;
+      top: 660px;
+      left: 150px;
+      width: 260px;
+      height: auto;
+      border-radius: 10px;
+      display: block;
+    }
+    #image3 {
+      position: absolute;
+      top: 20px;
+      left: 21px;
+      width: 45px;
+      height: auto;
+      border-radius: 8px;
+      display: block;
+    }
+  </style>
 </head>
 <body>
-    <div id="title">교내 자율주행 서비스</div>
-    <div id="map"></div>
-    <div id="location">위치 없음</div>
-    <div id="status">상태 없음</div>
 
-    <script>
-        const map = L.map('map').setView([35.1432, 126.9339], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+<div id="title">교내 자율주행 서비스</div>
+<div id="SOC">--%</div>
+<div id="map"></div>
+<div id="location">위치 없음</div>
+<div id="status">상태 없음</div>
+<div id="eta">도착 예상 시간: 0분</div>
+<div id="line"></div>
+<img id="image1" src="/media/fml.png" alt="FML_image1">
+<img id="image2" src="/media/FML.png" alt="FML_image2">
+<img id="image3" src="/media/chosun.svg" alt="chosun">
 
-        let marker = null;
-        let lastUpdateTime = 0;
+<div id="reservation_container">
+  <div>
+    <button id="boarding_button">승차 QR 발급</button>
+    <button id="disembarkation_button">하차 QR 발급</button>    
+    <div id="passenger_count">탑승객 수 : 0 / 8</div>
+  </div>
+  <div id="qr_area"></div>
+</div>
 
-        function updateMarker() {
-            fetch('/tf/')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.markers && data.markers.length > 0) {
-                        const m = data.markers[0];
-                        const latlng = [m.lat, m.lng];
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
-                        if (m.lat === 0.0 && m.lng === 0.0) {
-                            document.getElementById('location').innerText = "차량 위치 없음";
-                        } else {
-                            if (!marker) {
-                                marker = L.marker(latlng).addTo(map).bindPopup(m.title).openPopup();
-                            } else {
-                                marker.setLatLng(latlng);
-                                marker.getPopup().setContent(m.title);
-                            }
+<script>
+  const map = L.map('map').setView([35.1432, 126.9339], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-                            document.getElementById('location').innerText = "차량 위치: 확인됨";
-                            lastUpdateTime = Date.now();
-                        }
+  const vehicleIcon = L.icon({
+    iconUrl: 'https://notion-emojis.s3-us-west-2.amazonaws.com/prod/svg-twitter/1f68c.svg',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14]
+  });
 
-                        updateStatus(m.status);
-                    }
-                })
-                .catch(error => {
-                    console.error("위치 갱신 실패:", error);
-                    document.getElementById('location').innerText = "차량 위치 없음";
-                    document.getElementById('status').innerText = "상태 없음";
-                });
-        }
+  let marker = null;
+  let lastUpdateTime = 0;
 
-        function updateStatus(status) {
-            const statusBox = document.getElementById('status');
-            let statusText = "상태 없음";
-            let bgColor = "#f8f8f8";  // 기본 회색
+  function updateVehicleInfo() {
+    fetch('/vehicle/')
+      .then(response => response.json())
+      .then(data => {
+        if (data.vehicle && data.vehicle.length > 0) {
+          const v = data.vehicle[0];
+          const latlng = [v.lat, v.lng];
 
-            if (status === "정지") {
-                statusText = "상태: 정지";
-                bgColor = "#fdd"; // 연한 빨강
-            } else if (status === "운행중") {
-                statusText = "상태: 운행중";
-                bgColor = "#dfd"; // 연한 초록
-            } else if (status === "알수없음") {
-                statusText = "상태: 알수없음";
-                bgColor = "#eee"; // 연한 회색
+          if (v.lat === 0.0 && v.lng === 0.0) {
+            document.getElementById('location').innerText = "차량 위치 없음";
+          } else {
+            if (!marker) {
+              marker = L.marker(latlng, { icon: vehicleIcon }).addTo(map).bindPopup(v.title).openPopup();
+            } else {
+              marker.setLatLng(latlng);
+              marker.getPopup().setContent(v.title);
             }
+            document.getElementById('location').innerText = "차량 위치: 확인됨";
+            lastUpdateTime = Date.now();
+          }
 
-            statusBox.innerText = statusText;
-            statusBox.style.backgroundColor = bgColor;
+          updateETA(v.eta);
+          updateSOC(v.soc);
+          updateStatus(v.status);
         }
+      })
+      .catch(error => {
+        console.error("위치 갱신 실패:", error);
+        document.getElementById('location').innerText = "차량 위치 없음";
+        document.getElementById('SOC').innerText = "--%";
+        document.getElementById('SOC').style.backgroundColor = "#f8f8f8";
+        document.getElementById('status').innerText = "상태 없음";
+      });
+  }
+  function updateStatus(status) {
+    const box = document.getElementById('status');
+    let text = "상태: 알수없음";
+    let bg = "#eee";
 
-        function checkLocationStatus() {
-            if (Date.now() - lastUpdateTime > 1000) {
-                document.getElementById('location').innerText = "차량 위치 없음";
-            }
-        }
+    if (status === "운행중") {
+      text = "상태: 운행중";
+      bg = "#dfd";
+    } else if (status === "운행정지") {
+      text = "상태: 운행정지";
+      bg = "#f99";
+    } else if (status === "충전중") {
+      text = "상태: 충전중";
+      bg = "#ccf";
+    }
 
-        setInterval(updateMarker, 100);          
-        setInterval(checkLocationStatus, 100);   
-        updateMarker(); // 초기 호출
-    </script>
+    box.innerText = text;
+    box.style.backgroundColor = bg;
+  } 
+
+  function updateETA(eta) {
+    const box = document.getElementById('eta');
+    if (eta != null) {
+      if (eta < 1) {
+        box.innerText = `도착`;
+        box.style.backgroundColor = "#a8e6a1";
+      } else if (eta < 60) {
+        box.innerText = "도착 예상 시간: 1분 이내";
+        box.style.backgroundColor = "#f8f8f8";
+      } else {
+        const minutes = Math.floor(eta / 60);
+        const seconds = Math.round((eta % 60) / 10) * 10;
+        const secText = (seconds === 60) ? { minutes: minutes + 1, seconds: 0 } : { minutes, seconds };
+        box.innerText = `도착 예상 시간: 약 ${secText.minutes}분 ${secText.seconds}초`;
+        box.style.backgroundColor = "#f8f8f8";
+      }
+    } else {
+      box.innerText = "도착 예상 시간: --";
+      box.style.backgroundColor = "#f8f8f8";
+    }
+  }
+
+  function updateSOC(soc) {
+    const box = document.getElementById('SOC');
+    if (soc === null || soc === undefined || isNaN(soc) || soc < 0) {
+      box.innerText = "--%";
+      box.style.backgroundColor = "#f8f8f8";
+      return;
+    }
+
+    const roundedSOC = Math.round(soc);
+    box.innerText = `${roundedSOC}%`;
+
+    if (roundedSOC <= 20) {
+      box.style.backgroundColor = "#f88";
+    } else if (roundedSOC <= 60) {
+      box.style.backgroundColor = "#ffa500";
+    } else {
+      box.style.backgroundColor = "#a8e6a1";
+    }
+  }
+
+  document.getElementById('boarding_button').addEventListener('click', () => {
+    const qrTarget = document.getElementById('qr_area');
+    qrTarget.innerHTML = "";
+    const ticketData = "boarding-ticket-" + new Date().getTime();
+    const canvas = document.createElement('canvas');
+
+    QRCode.toCanvas(canvas, ticketData, { width: 200 }, err => {
+      if (!err) qrTarget.appendChild(canvas);
+    });
+  });
+
+  document.getElementById('disembarkation_button').addEventListener('click', () => {
+    const qrTarget = document.getElementById('qr_area');
+    qrTarget.innerHTML = "";
+    const ticketData = "disembarkation-ticket-" + new Date().getTime();
+    const canvas = document.createElement('canvas');
+
+    QRCode.toCanvas(canvas, ticketData, { width: 200 }, err => {
+      if (!err) qrTarget.appendChild(canvas);
+    });
+  });
+
+  setInterval(updateVehicleInfo, 1000);
+  setInterval(checkLocationStatus, 200);
+</script>
+
 </body>
 </html>

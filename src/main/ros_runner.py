@@ -1,111 +1,128 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
+from std_msgs.msg import Int32
+from tier4_debug_msgs.msg import Float64Stamped
 from tf2_msgs.msg import TFMessage
-from autoware_adapi_v1_msgs.msg import MotionState
+from mgrs import MGRS
 from pathlib import Path
 import json
+import math
 import time
-from mgrs import MGRS
+
+CHARGER_X = 11622.964
+CHARGER_Y = 90666.18
+CHARGER_RADIUS = 5.0
 
 class Listener(Node):
     def __init__(self):
         super().__init__('tf_listener')
+        self.create_subscription(TFMessage, '/tf', self.tf_callback, 10)
+        self.create_subscription(Int32, '/test', self.soc_callback, 10)
+        self.create_subscription(Float64Stamped, '/path_distance_calculator/distance', self.eta_callback, 10)
 
-        self.subscription = self.create_subscription(
-            TFMessage,
-            '/tf',
-            self.listener_callback,
-            10
-        )
-
-        self.motion_state = None
-        self.mgrs_converter = MGRS()
+        self.soc = None
+        self.latest_eta = None
+        self.last_tf_data = None
         self.last_tf_time = time.time()
-        self.last_save_time = 0  # 🔸 저장 시간 추적
-
-        self.create_subscription(
-            MotionState,
-            '/api/motion/state',
-            self.motion_callback,
-            10
-        )
+        self.last_save_time = 0
+        self.mgrs_converter = MGRS()
 
         self.create_timer(1.0, self.check_tf_timeout)
 
-    def motion_callback(self, msg):
-        self.motion_state = msg.state
-        print(f"[🟢 MotionState 수신] 상태 코드: {self.motion_state}")
-
-    def listener_callback(self, msg):
+    def tf_callback(self, msg):
         for tf in msg.transforms:
             if tf.child_frame_id == "base_link":
                 t = tf.transform.translation
+                self.last_tf_data = (t.x, t.y)
                 self.last_tf_time = time.time()
 
-                try:
-                    # Autoware map 좌표는 MGRS 기반
-                    x = int(round(t.x))
-                    y = int(round(t.y))
-                    mgrs_str = f"52SCD{x:05d}{y:05d}"
-                    lat, lon = self.mgrs_converter.toLatLon(mgrs_str)
+    def soc_callback(self, msg):
+        self.soc = msg.data
 
-                    marker = {
-                        "lat": round(lat, 8),
-                        "lng": round(lon, 8),
-                        "title": "차량 위치"
-                    }
-
-                    self.save_marker(marker)
-                    print(f"[✅ TF 변환] x={t.x:.2f}, y={t.y:.2f} → {mgrs_str} → 위도={lat:.8f}, 경도={lon:.8f}")
-
-                except Exception as e:
-                    print(f"[⚠️ 변환 오류] {e}")
+    def eta_callback(self, msg):
+        distance = msg.data
+        speed = 3.611  # 13kph
+        if distance <= 0:
+            self.latest_eta = None
+            return
+        eta = distance / speed
+        self.latest_eta = round(eta)
+        self.get_logger().info(f"ETA: {eta:.1f}sec")
 
     def check_tf_timeout(self):
         if time.time() - self.last_tf_time > 3.0:
-            marker = {
+            vehicle_info = {
                 "lat": 0.0,
                 "lng": 0.0,
                 "title": "차량 위치 없음",
-                "status": "알수없음"
+                "soc": self.soc,
+                "status": "위치 없음"
             }
-            self.save_marker(marker)
-            print("[⏰ TF 타임아웃] 3초 이상 위치 없음 → 상태: 알수없음")
+            self.save_vehicle_info(vehicle_info)
+        else:
+            self.publish_vehicle_info()
 
-    def save_marker(self, marker):
+    def publish_vehicle_info(self):
+        if not self.last_tf_data:
+            return
+        x, y = self.last_tf_data
+        try:
+            x_round = int(round(x))
+            y_round = int(round(y))
+            mgrs_str = f"52SCD{x_round:05d}{y_round:05d}"
+            lat, lon = self.mgrs_converter.toLatLon(mgrs_str)
+
+            status = self.determine_status(x, y)
+
+            vehicle_info = {
+                "lat": round(lat, 8),
+                "lng": round(lon, 8),
+                "title": "차량 위치",
+                "soc": self.soc,
+                "eta": self.latest_eta,
+                "status": status
+            }
+            self.save_vehicle_info(vehicle_info)
+
+        except Exception as e:
+            self.get_logger().error(f"[error] {e}")
+
+    def determine_status(self, x, y):
+        # 거리 계산
+        dx = x - CHARGER_X
+        dy = y - CHARGER_Y
+        dist = math.sqrt(dx*dx + dy*dy)
+
+        if dist <= CHARGER_RADIUS:
+            return "충전중"
+        elif self.soc is not None:
+            return "운행정지" if self.soc <= 30 else "운행중"
+        else:
+            return "알수없음"
+
+    def save_vehicle_info(self, vehicle_info):
         now = time.time()
         if now - self.last_save_time < 0.1:
-            return  # 🔸 저장 제한 (0.2초 간격)
+            return
         self.last_save_time = now
 
-        # 상태 추가
-        if "status" not in marker:
-            if self.motion_state == 1:
-                marker["status"] = "정지"
-            elif self.motion_state == 3:
-                marker["status"] = "운행중"
-            elif self.motion_state is None:
-                marker["status"] = "알수없음"
-            else:
-                marker["status"] = "알수없음"
-
-        print(f"[💾 상태 저장] {marker['status']}")
-        path = Path("marker_data.json")
+        path = Path("vehicle_info.json")
         with path.open("w") as f:
-            json.dump({"markers": [marker]}, f, indent=2)
-
+            json.dump({"vehicle": [vehicle_info]}, f, indent=2)
 
 def main():
     rclpy.init()
     node = Listener()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy_node()
         rclpy.shutdown()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

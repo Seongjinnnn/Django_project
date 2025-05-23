@@ -6,11 +6,11 @@ import json
 def map_view(request):
     return render(request, 'main/map.html')
 
-def marker_data(request):
-    path = Path('marker_data.json')
+def vehicle_info(request):
+    path = Path('vehicle_info.json')
     if path.exists():
         with path.open() as f:
             data = json.load(f)
         return JsonResponse(data)
-    # 마커 없을 때는 빈 리스트
-    return JsonResponse({'markers': []})
+    
+    return JsonResponse({'vehicle': []})
